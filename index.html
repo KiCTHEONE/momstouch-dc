@@ -29,6 +29,10 @@
     --hall:#1D3357;
     --kitchen:#8A3A1F;
     --danger:#B23B3B;
+    --brand:#C81E2C;
+    --work-green:#1F7A4C;
+    --work-green-bg:#E9F4EE;
+    --navy-bg:#E7ECF3;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
@@ -69,17 +73,23 @@
     #app{ max-width:920px; }
   }
   header.topbar{
-    padding:16px 16px 8px 16px;
+    padding:16px 16px 10px 16px;
     background:var(--bg);
     position:sticky;
     top:0;
     z-index:5;
+    border-bottom:1px solid var(--line);
   }
   header.topbar h1{
     margin:0;
     font-size:15px;
     font-weight:700;
     letter-spacing:-0.01em;
+  }
+  header.topbar .accent-bar{
+    width:20px;height:3px;
+    background:var(--brand);
+    margin-top:8px;
   }
   main{
     flex:1;
@@ -100,13 +110,14 @@
     flex:1;
     border:none;
     background:transparent;
-    padding:10px 4px 9px 4px;
+    padding:11px 4px 10px 4px;
     font-size:11.5px;
     font-weight:500;
     color:var(--sub);
     cursor:pointer;
     letter-spacing:-.01em;
     position:relative;
+    transition:color .15s;
   }
   nav.tabbar button.active{color:var(--ink);font-weight:700;}
   nav.tabbar button.active::after{
@@ -114,8 +125,8 @@
     position:absolute;
     top:0;left:50%;
     transform:translateX(-50%);
-    width:18px;height:2px;
-    background:var(--ink);
+    width:22px;height:2.5px;
+    background:var(--brand);
   }
   .section-title{
     font-size:10.5px;
@@ -139,21 +150,33 @@
     padding:6px 0;
     cursor:pointer;
     border-radius:0;
+    transition:opacity .12s;
   }
+  .btn:active{opacity:.6;}
   .btn.primary{
-    background:var(--ink);
+    background:var(--navy);
     color:#fff;
-    padding:11px 14px;
+    padding:12px 14px;
     font-size:13.5px;
     font-weight:700;
+    letter-spacing:.01em;
+  }
+  .btn.brand{
+    background:var(--brand);
+    color:#fff;
+    padding:12px 14px;
+    font-size:13.5px;
+    font-weight:700;
+    letter-spacing:.01em;
   }
   .btn.danger{color:var(--danger);}
   .btn.strong{color:var(--ink);}
   .btn.block{width:100%;}
   .btn.outline{
-    border:1px solid var(--line-mid);
+    border:1.5px solid var(--navy);
     padding:8px 12px;
-    color:var(--ink);
+    color:var(--navy);
+    font-weight:700;
   }
   .fab{
     position:fixed;
@@ -207,6 +230,29 @@
     align-items:center;
   }
   .sched-item-t{font-size:11px;color:var(--sub);margin-top:2px;text-align:right;}
+  .clock-card{
+    border:1px solid var(--line);
+    border-left:4px solid var(--line-mid);
+    padding:16px;
+    margin-bottom:10px;
+    box-shadow:0 1px 3px rgba(19,19,18,.04);
+    background:var(--panel);
+  }
+  .clock-card.status-working{border-left-color:var(--work-green);background:var(--work-green-bg);}
+  .clock-card.status-done{border-left-color:var(--navy);}
+  .clock-card .ccrow{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .clock-card .cname{font-size:15px;font-weight:800;}
+  .status-label{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.03em;margin-top:4px;}
+  .status-label .sq{width:6px;height:6px;flex-shrink:0;}
+  .status-idle .status-label{color:var(--sub);}
+  .status-idle .status-label .sq{background:var(--sub);}
+  .status-working .status-label{color:var(--work-green);}
+  .status-working .status-label .sq{background:var(--work-green);animation:pulse 1.4s infinite;}
+  .status-done .status-label{color:var(--navy);}
+  .status-done .status-label .sq{background:var(--navy);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .clock-card .ctotal{font-size:12.5px;font-weight:700;color:var(--ink);margin-top:6px;}
+  .clock-card .cdetail{font-size:11px;color:var(--sub);margin-top:2px;}
   .meta-row{
     margin-top:2px;
     font-size:11.5px;
@@ -346,7 +392,7 @@
     border-bottom:1px solid var(--line);
   }
   .result-total .lbl{font-size:11.5px;color:var(--sub);font-weight:600;}
-  .result-total .val{font-size:22px;font-weight:800;}
+  .result-total .val{font-size:24px;font-weight:800;color:var(--navy);}
   .payline{
     display:flex;
     justify-content:space-between;
@@ -605,8 +651,9 @@ function render(){
   const app = document.getElementById('app');
   app.innerHTML = `
     <header class="topbar">
-      <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v13</span></h1>
+      <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v15</span></h1>
       <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
+      <div class="accent-bar"></div>
     </header>
     <main id="main"></main>
     <div class="fab" id="fabWrap"></div>
@@ -656,23 +703,31 @@ function renderClockIn(){
     const todays = state.worklogs.filter(w=>w.employeeId===e.id && w.date===today);
     const open = todays.find(w=>!w.endTime);
     const completed = todays.filter(w=>w.endTime);
-    let statusHtml = '';
-    if(open){
-      statusHtml = `<button class="btn primary" data-act="clockout" data-emp="${e.id}" data-log="${open.id}">퇴근하기</button>
-        <div class="sched-item-t">${open.startTime} 출근함</div>`;
-    } else {
-      statusHtml = `<button class="btn outline" data-act="clockin" data-emp="${e.id}">출근하기</button>`;
-    }
-    const completedHtml = completed.map(w=>`<div class="sched-item-t">완료 · ${w.startTime}~${w.endTime}</div>`).join('');
+    const todayTotalHours = completed.reduce((s,w)=>s+calcHours(w.startTime,w.endTime),0);
+
+    let statusClass = 'status-idle', statusText = '출근 전';
+    if(open){ statusClass='status-working'; statusText='근무중'; }
+    else if(completed.length>0){ statusClass='status-done'; statusText='근무 완료'; }
+
+    const btnHtml = open
+      ? `<button class="btn brand" data-act="clockout" data-emp="${e.id}" data-log="${open.id}">퇴근하기</button>`
+      : `<button class="btn outline" data-act="clockin" data-emp="${e.id}">출근하기</button>`;
+
+    const detailLines = [];
+    if(open) detailLines.push(`${open.startTime} 출근함`);
+    completed.forEach(w=>detailLines.push(`완료 · ${w.startTime}~${w.endTime}`));
+
     return `
-      <div class="emp-row">
-        <div class="row-top">
-          <span class="name">${escapeHtml(e.name)}</span>
+      <div class="clock-card ${statusClass}">
+        <div class="ccrow">
+          <div>
+            <div class="cname">${escapeHtml(e.name)}</div>
+            <div class="status-label"><span class="sq"></span>${statusText}</div>
+          </div>
+          <div>${btnHtml}</div>
         </div>
-        <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
-          <div>${completedHtml}${completedHtml && open? '':''}</div>
-          <div style="text-align:right;">${statusHtml}</div>
-        </div>
+        ${detailLines.map(d=>`<div class="cdetail">${d}</div>`).join('')}
+        ${todayTotalHours>0? `<div class="ctotal">오늘 총 ${fmtHours(todayTotalHours)}</div>` : ''}
       </div>`;
   }).join('');
 
