@@ -411,6 +411,14 @@
     appearance:none;
     -webkit-appearance:none;
   }
+  .field select{
+    background:var(--panel);
+    color-scheme:dark;
+  }
+  .field select option{
+    background:var(--panel);
+    color:var(--ink);
+  }
   .field select:focus,.field input:focus{outline:none;border-bottom-color:var(--brand);}
   .row2{display:flex;gap:16px;}
   .row2 .field{flex:1;}
@@ -714,7 +722,7 @@ function render(){
   app.innerHTML = `
     <div class="content-col">
       <header class="topbar">
-        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v21</span></h1>
+        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v22</span></h1>
         <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
         <div class="today-widget">
           <div class="tw-date">${dateLabel()}</div>
