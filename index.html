@@ -11,31 +11,31 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="알바관리">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="theme-color" content="#1B1916">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#FFFFFF;
-    --bg-alt:#FAFAF9;
-    --panel:#FFFFFF;
-    --ink:#131312;
-    --sub:#9C9A94;
-    --sub2:#63615B;
-    --line:#EFEEEA;
-    --line-mid:#DCDAD4;
-    --navy:#1D3357;
-    --hall:#1D3357;
-    --kitchen:#8A3A1F;
-    --danger:#B23B3B;
-    --brand:#C81E2C;
-    --work-green:#1F7A4C;
-    --work-green-bg:#E9F4EE;
-    --navy-bg:#E7ECF3;
+    --bg:#1B1916;
+    --bg-alt:#100F0D;
+    --panel:#221F1B;
+    --ink:#F3EFE9;
+    --sub:#8C887F;
+    --sub2:#C7C2B8;
+    --line:#332F29;
+    --line-mid:#4A453C;
+    --navy:#D9A441;
+    --hall:#D9A441;
+    --kitchen:#C6672D;
+    --danger:#E4635A;
+    --brand:#E2402F;
+    --work-green:#3FAE73;
+    --work-green-bg:#182922;
+    --navy-bg:#2A2416;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;color-scheme:dark;}
   body{
     background:var(--bg-alt);
     color:var(--ink);
@@ -55,22 +55,52 @@
     flex-direction:column;
     position:relative;
   }
-  @media (min-width:680px){
-    body{ padding:32px 0; align-items:flex-start; }
+  @media (min-width:820px){
+    body{ padding:0; align-items:stretch; }
     #app{
-      max-width:760px;
-      min-height:auto;
-      box-shadow:0 0 0 1px var(--line-mid), 0 12px 32px rgba(0,0,0,.06);
+      max-width:1200px;
+      min-height:100vh;
+      flex-direction:row;
+      box-shadow:0 0 0 1px var(--line-mid);
     }
-    header.topbar{ padding-left:32px; padding-right:32px; }
-    main{ padding-left:32px; padding-right:32px; }
-    nav.tabbar{ position:static; }
-    table.cal td{ height:76px; font-size:12px; }
+    .content-col{ min-width:0; }
+    header.topbar{ padding:28px 36px 18px 36px; position:sticky; }
+    main{ padding:8px 36px 48px 36px; }
+    nav.tabbar{
+      order:-1;
+      position:sticky;
+      top:0;
+      height:100vh;
+      flex-direction:column;
+      justify-content:flex-start;
+      width:196px;
+      flex-shrink:0;
+      border-top:none;
+      border-right:1px solid var(--line);
+      background:var(--bg);
+      backdrop-filter:none;
+      padding:28px 0 0 0;
+      gap:2px;
+    }
+    nav.tabbar button{
+      text-align:left;
+      padding:13px 28px;
+      font-size:13.5px;
+    }
+    nav.tabbar button.active::after{
+      left:0; right:auto; top:0; bottom:0;
+      transform:none;
+      width:3px; height:auto;
+    }
+    table.cal td{ height:84px; font-size:12px; }
     .modal{ max-width:520px; margin:0 auto; }
     .overlay{ align-items:center; }
+    .fab{ max-width:1200px; }
   }
-  @media (min-width:1000px){
-    #app{ max-width:920px; }
+  @media (min-width:1100px){
+    #app{ max-width:1320px; }
+    nav.tabbar{ width:220px; }
+    .fab{ max-width:1320px; }
   }
   header.topbar{
     padding:16px 16px 10px 16px;
@@ -90,6 +120,28 @@
     width:20px;height:3px;
     background:var(--brand);
     margin-top:8px;
+  }
+  .date-weather{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-top:10px;
+    font-size:12.5px;
+    color:var(--sub2);
+    font-weight:600;
+  }
+  .date-weather .dw-weather{
+    display:inline-flex;
+    align-items:center;
+    gap:3px;
+    color:var(--ink);
+    font-weight:700;
+  }
+  .content-col{
+    display:flex;
+    flex-direction:column;
+    flex:1;
+    min-width:0;
   }
   main{
     flex:1;
@@ -154,7 +206,7 @@
   }
   .btn:active{opacity:.6;}
   .btn.primary{
-    background:var(--navy);
+    background:var(--brand);
     color:#fff;
     padding:12px 14px;
     font-size:13.5px;
@@ -194,7 +246,7 @@
     right:16px;
     bottom:calc(70px + env(safe-area-inset-bottom));
     width:44px;height:44px;
-    background:var(--ink);
+    background:var(--brand);
     color:#fff;
     border:none;
     font-size:22px;
@@ -235,7 +287,7 @@
     border-left:4px solid var(--line-mid);
     padding:16px;
     margin-bottom:10px;
-    box-shadow:0 1px 3px rgba(19,19,18,.04);
+    box-shadow:0 1px 3px rgba(0,0,0,.3);
     background:var(--panel);
   }
   .clock-card.status-working{border-left-color:var(--work-green);background:var(--work-green-bg);}
@@ -307,10 +359,10 @@
     font-size:10px;
     cursor:pointer;
   }
-  table.cal td.otherm{color:#D8D6CF;}
+  table.cal td.otherm{color:#4A453C;}
   table.cal td.today .dnum{
     display:inline-block;
-    background:var(--ink);
+    background:var(--brand);
     color:#fff;
     width:15px;height:15px;
     line-height:15px;
@@ -318,7 +370,7 @@
     border-radius:50%;
   }
   table.cal td .dnum{font-size:10px;font-weight:600;margin-bottom:2px;color:var(--ink);}
-  table.cal td.otherm .dnum{color:#D8D6CF;}
+  table.cal td.otherm .dnum{color:#4A453C;}
   .cal-tag{
     display:flex;
     align-items:center;
@@ -373,7 +425,7 @@
     appearance:none;
     -webkit-appearance:none;
   }
-  .field select:focus,.field input:focus{outline:none;border-bottom-color:var(--ink);}
+  .field select:focus,.field input:focus{outline:none;border-bottom-color:var(--brand);}
   .row2{display:flex;gap:16px;}
   .row2 .field{flex:1;}
   .quickrange{display:flex;gap:16px;margin:-4px 0 14px 0;}
@@ -404,7 +456,7 @@
   .payline .d1{color:var(--sub);}
   .overlay{
     position:fixed;inset:0;
-    background:rgba(19,19,18,.45);
+    background:rgba(0,0,0,.65);
     display:flex;
     align-items:flex-end;
     justify-content:center;
@@ -448,7 +500,7 @@
     flex:none;
   }
   .days-picker input{display:none;}
-  .days-picker label.checked{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .days-picker label.checked{background:var(--brand);color:#fff;border-color:var(--brand);}
   .seg{display:flex;border-bottom:1.5px solid var(--line-mid);}
   .seg button{
     flex:1;
@@ -462,7 +514,7 @@
     margin-bottom:-1.5px;
     border-bottom:1.5px solid transparent;
   }
-  .seg button.on{color:var(--ink);border-bottom-color:var(--ink);}
+  .seg button.on{color:var(--brand);border-bottom-color:var(--brand);}
   .checkline{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--sub2);}
   .checkline input{width:15px;height:15px;}
   .toast{
@@ -470,8 +522,9 @@
     bottom:76px;
     left:50%;
     transform:translateX(-50%);
-    background:var(--ink);
-    color:#fff;
+    background:#2E2A24;
+    border:1px solid var(--line-mid);
+    color:var(--ink);
     font-size:11.5px;
     font-weight:500;
     padding:10px 14px;
@@ -509,7 +562,7 @@
   }
   .lock-logo{text-align:center;margin-bottom:40px;}
   .lock-logo .brand{font-size:23px;font-weight:900;letter-spacing:-.01em;color:var(--ink);}
-  .lock-logo .bar{width:26px;height:3px;background:#C81E2C;margin:9px auto 0 auto;}
+  .lock-logo .bar{width:26px;height:3px;background:var(--brand);margin:9px auto 0 auto;}
   .lock-logo .store{font-size:12px;font-weight:600;color:var(--sub2);margin-top:9px;letter-spacing:.02em;}
   .pin-dots{display:flex;gap:14px;margin-bottom:34px;}
   .pin-dot{width:11px;height:11px;border:1.5px solid var(--line-mid);}
@@ -551,12 +604,33 @@ let state = {
   unlocked: false,
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
-  loaded: false
+  loaded: false,
+  weather: null
 };
 
 function nowHHMM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function dateLabel(){ const n=new Date(); return `${n.getMonth()+1}월 ${n.getDate()}일 (${WD[n.getDay()]})`; }
+function weatherIcon(code){
+  if(code===0) return '☀️';
+  if(code>=1&&code<=3) return '⛅';
+  if(code===45||code===48) return '🌫️';
+  if(code>=51&&code<=67) return '🌧️';
+  if(code>=71&&code<=77) return '🌨️';
+  if(code>=80&&code<=82) return '🌦️';
+  if(code>=95) return '⛈️';
+  return '🌡️';
+}
+async function fetchWeather(){
+  try{
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.5509&longitude=126.865&current=temperature_2m,weather_code&timezone=Asia%2FSeoul');
+    if(r.ok){
+      const d = await r.json();
+      state.weather = { temp: Math.round(d.current.temperature_2m), code: d.current.weather_code };
+    }
+  }catch(err){ /* weather is optional, fail silently */ }
+}
 function todayStr(){ return fmtDate(new Date()); }
 function fmtDate(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function won(n){ return Math.round(n).toLocaleString('ko-KR')+'원'; }
@@ -649,13 +723,20 @@ async function saveWorklogs(){
 /* ============ RENDER ROOT ============ */
 function render(){
   const app = document.getElementById('app');
+  const weatherHtml = state.weather ? `<span class="dw-weather">${weatherIcon(state.weather.code)} ${state.weather.temp}°</span>` : '';
   app.innerHTML = `
-    <header class="topbar">
-      <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v15</span></h1>
-      <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
-      <div class="accent-bar"></div>
-    </header>
-    <main id="main"></main>
+    <div class="content-col">
+      <header class="topbar">
+        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v17</span></h1>
+        <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
+        <div class="date-weather">
+          <span class="dw-date">${dateLabel()}</span>
+          ${weatherHtml}
+        </div>
+        <div class="accent-bar"></div>
+      </header>
+      <main id="main"></main>
+    </div>
     <div class="fab" id="fabWrap"></div>
     <nav class="tabbar">
       <button data-tab="clockin" class="${state.tab==='clockin'?'active':''}">출퇴근</button>
@@ -692,10 +773,9 @@ function renderClockIn(){
     return;
   }
   const now = new Date();
-  const dateLabel = `${now.getMonth()+1}월 ${now.getDate()}일 (${WD[now.getDay()]})`;
 
   main.innerHTML = `
-    <div class="section-title" style="margin-top:14px;">${dateLabel}</div>
+    <div class="section-title" style="margin-top:14px;">오늘 출퇴근 현황 · ${active.length}명</div>
     <div id="clockList"></div>
   `;
   const list = document.getElementById('clockList');
@@ -1384,7 +1464,7 @@ function checkPin(){
 
 /* ============ INIT ============ */
 (async function initApp(){
-  await loadAll();
+  await Promise.all([loadAll(), fetchWeather()]);
   render();
 })();
 </script>
