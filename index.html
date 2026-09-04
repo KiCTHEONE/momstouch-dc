@@ -65,7 +65,7 @@
     }
     header.topbar{ padding:24px 40px 14px 40px; }
     main{ padding:8px 40px 88px 40px; max-width:1000px; margin:0 auto; width:100%; }
-    table.cal td{ height:84px; font-size:12px; }
+    table.cal td{ height:110px; font-size:12px; }
     .modal{ max-width:520px; margin:0 auto; }
     .overlay{ align-items:center; }
     .fab{ max-width:none; }
@@ -340,8 +340,8 @@
   table.cal td{
     vertical-align:top;
     border-bottom:1px solid var(--line);
-    height:52px;
-    padding:4px 2px;
+    height:80px;
+    padding:6px 3px;
     font-size:10px;
     cursor:pointer;
   }
@@ -596,10 +596,13 @@ let state = {
   employees: [],
   worklogs: [],
   payments: [],
+  notes: [],
   tab: 'clockin',
   unlocked: false,
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
+  noteYear: new Date().getFullYear(),
+  noteMonth: new Date().getMonth(),
   loaded: false,
   weather: null
 };
@@ -708,6 +711,15 @@ async function loadAll(){
       state.payments = [];
     }
   }catch(err){ state.payments = []; }
+  try{
+    const r4 = await fetch(FB_URL+'/notes.json', {cache:'no-store'});
+    if(r4.ok){
+      const data4 = await r4.json();
+      state.notes = Array.isArray(data4) ? data4.filter(Boolean) : (data4 ? Object.values(data4) : []);
+    } else {
+      state.notes = [];
+    }
+  }catch(err){ state.notes = []; }
   state.loaded = true;
 }
 async function saveEmployees(){
@@ -752,6 +764,20 @@ async function savePayments(){
     }
   }catch(err){ showToast('저장 오류: '+(err&&err.message?err.message:String(err)), 10000); }
 }
+async function saveNotes(){
+  try{
+    const r = await fetch(FB_URL+'/notes.json', {
+      method:'PUT',
+      cache:'no-store',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(state.notes)
+    });
+    if(!r.ok){
+      const t = await r.text().catch(()=>'');
+      showToast(`저장 실패 (${r.status}) ${t}`.slice(0,400), 10000);
+    }
+  }catch(err){ showToast('저장 오류: '+(err&&err.message?err.message:String(err)), 10000); }
+}
 
 /* ============ RENDER ROOT ============ */
 function render(){
@@ -760,7 +786,7 @@ function render(){
   app.innerHTML = `
     <div class="content-col">
       <header class="topbar">
-        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v29</span></h1>
+        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v32</span></h1>
         <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
         <div class="today-widget">
           <div class="tw-date">${dateLabel()}</div>
@@ -774,6 +800,7 @@ function render(){
     <div class="fab" id="fabWrap"></div>
     <nav class="tabbar">
       <button data-tab="clockin" class="${state.tab==='clockin'?'active':''}">출퇴근</button>
+      <button data-tab="notes" class="${state.tab==='notes'?'active':''}">메모</button>
       ${state.unlocked ? `
       <button data-tab="employees" class="${state.tab==='employees'?'active':''}">알바관리</button>
       <button data-tab="calendar" class="${state.tab==='calendar'?'active':''}">캘린더</button>
@@ -787,13 +814,14 @@ function render(){
   document.querySelectorAll('nav.tabbar button').forEach(b=>{
     b.addEventListener('click',()=>{
       const target = b.dataset.tab;
-      if(target==='clockin'){ state.tab='clockin'; render(); return; }
+      if(target==='clockin' || target==='notes'){ state.tab=target; render(); return; }
       if(target==='admin-lock'){ openPinModal('employees'); return; }
       if(target==='lock-out'){ state.unlocked=false; state.tab='clockin'; render(); return; }
       if(state.unlocked){ state.tab=target; render(); }
     });
   });
   if(state.tab==='clockin') renderClockIn();
+  if(state.tab==='notes') renderNotes();
   if(state.tab==='employees') renderEmployees();
   if(state.tab==='calendar') renderCalendar();
   if(state.tab==='payroll') renderPayroll();
@@ -955,6 +983,24 @@ function deleteEmployee(id){
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+function fitCalendarRows(){
+  const table = document.querySelector('table.cal');
+  const main = document.getElementById('main');
+  if(!table || !main) return;
+  const tbody = table.querySelector('tbody');
+  const rowCount = tbody ? tbody.querySelectorAll('tr').length : 6;
+  let usedHeight = 0;
+  Array.from(main.children).forEach(el=>{
+    if(el.tagName!=='TABLE') usedHeight += el.offsetHeight;
+  });
+  const thead = table.querySelector('thead');
+  usedHeight += thead ? thead.offsetHeight : 0;
+  const style = getComputedStyle(main);
+  const availableHeight = main.clientHeight - usedHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom) - 8;
+  const rowHeight = Math.max(56, Math.floor(availableHeight / rowCount));
+  table.querySelectorAll('tbody td').forEach(td=>{ td.style.height = rowHeight+'px'; });
+}
+
 function downloadCSV(rows, filename){
   const csv = rows.map(r=>r.map(v=>{
     const s = String(v===undefined||v===null? '' : v);
@@ -1096,6 +1142,126 @@ function openEmployeeForm(existing){
 }
 
 /* ============ CALENDAR TAB ============ */
+/* ============ NOTES CALENDAR TAB (no PIN required, shared notice board) ============ */
+function renderNotes(){
+  const main = document.getElementById('main');
+  document.getElementById('fabWrap').innerHTML = '';
+  const y = state.noteYear, m = state.noteMonth;
+  const first = new Date(y,m,1);
+  const startOffset = first.getDay();
+  const daysInMonth = new Date(y,m+1,0).getDate();
+  const daysInPrevMonth = new Date(y,m,0).getDate();
+
+  let cells = [];
+  for(let i=startOffset-1;i>=0;i--) cells.push({d:daysInPrevMonth-i, other:true, dateObj:new Date(y,m-1,daysInPrevMonth-i)});
+  for(let d=1; d<=daysInMonth; d++) cells.push({d, other:false, dateObj:new Date(y,m,d)});
+  while(cells.length%7!==0){
+    const nd = cells.length - (startOffset+daysInMonth) + 1;
+    cells.push({d:nd, other:true, dateObj:new Date(y,m+1,nd)});
+  }
+  const todayS = todayStr();
+
+  let rows = '';
+  for(let r=0;r<cells.length/7;r++){
+    let row='<tr>';
+    for(let c=0;c<7;c++){
+      const cell = cells[r*7+c];
+      const dateStr = fmtDate(cell.dateObj);
+      const dayNotes = state.notes.filter(n=>n.date===dateStr);
+      let tagsHtml = '';
+      dayNotes.slice(0,2).forEach(n=>{
+        tagsHtml += `<span class="cal-tag" style="color:var(--navy);"><span class="sq" style="background:var(--navy);"></span>${escapeHtml(n.text.slice(0,10))}</span>`;
+      });
+      if(dayNotes.length>2) tagsHtml += `<span class="cal-tag pend">+${dayNotes.length-2}</span>`;
+      row += `<td class="${cell.other?'otherm':''} ${dateStr===todayS?'today':''}" data-date="${dateStr}">
+        <div class="dnum">${cell.d}</div>${tagsHtml}
+      </td>`;
+    }
+    row+='</tr>';
+    rows+=row;
+  }
+
+  main.innerHTML = `
+    <div class="cal-head">
+      <button id="prevNM">‹</button>
+      <span class="title">${y}년 ${m+1}월</span>
+      <button id="nextNM">›</button>
+    </div>
+    <table class="cal">
+      <thead><tr>${WD.map(w=>`<th>${w}</th>`).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="legend"><span><span class="sq solid" style="background:var(--navy);"></span>메모 있음 · 날짜 탭해서 확인</span></div>
+    <button class="btn outline block" id="gotoTodayNote" style="margin-top:16px;">오늘 메모 작성</button>
+  `;
+  document.getElementById('prevNM').addEventListener('click', ()=>{
+    state.noteMonth--; if(state.noteMonth<0){state.noteMonth=11; state.noteYear--;} renderNotes();
+  });
+  document.getElementById('nextNM').addEventListener('click', ()=>{
+    state.noteMonth++; if(state.noteMonth>11){state.noteMonth=0; state.noteYear++;} renderNotes();
+  });
+  document.getElementById('gotoTodayNote').addEventListener('click', ()=>{
+    const now = new Date();
+    state.noteYear = now.getFullYear();
+    state.noteMonth = now.getMonth();
+    renderNotes();
+    openNoteDayModal(todayStr());
+  });
+  main.querySelectorAll('td[data-date]').forEach(td=>{
+    td.addEventListener('click', ()=>openNoteDayModal(td.dataset.date));
+  });
+  requestAnimationFrame(fitCalendarRows);
+}
+
+function openNoteDayModal(dateStr){
+  const dObj = new Date(dateStr+'T00:00:00');
+  const wd = WD[dObj.getDay()];
+  const dayNotes = state.notes.filter(n=>n.date===dateStr);
+
+  const modalRoot = document.getElementById('modalRoot');
+  modalRoot.innerHTML = `
+  <div class="overlay" id="ovNote">
+    <div class="modal modal-wrap">
+      <button class="close-x" id="closeNote">✕</button>
+      <h2>${dateStr} (${wd}) · 메모</h2>
+      <div id="noteList">
+        ${dayNotes.length? dayNotes.map(n=>`
+          <div class="wl-item" style="align-items:flex-start;">
+            <div class="info" style="white-space:pre-wrap;">${escapeHtml(n.text)}</div>
+            <button class="btn danger" data-del-note="${n.id}">삭제</button>
+          </div>`).join('') : '<div class="empty" style="padding:16px 0;">등록된 메모가 없습니다.</div>'}
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>새 메모 추가</label>
+        <textarea id="note-text" rows="3" placeholder="예: 단체주문 20인분 오후 3시, 김민석 예비군 훈련" style="width:100%;border:1px solid var(--line-mid);background:transparent;color:var(--ink);padding:8px;font-family:inherit;font-size:13.5px;resize:vertical;"></textarea>
+      </div>
+      <button class="btn primary block" id="addNoteBtn">메모 추가</button>
+    </div>
+  </div>`;
+  const ov = document.getElementById('ovNote');
+  document.getElementById('closeNote').addEventListener('click', ()=>ov.remove());
+  ov.addEventListener('click', ev=>{ if(ev.target===ov) ov.remove(); });
+
+  ov.querySelectorAll('[data-del-note]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      state.notes = state.notes.filter(n=>n.id!==b.dataset.delNote);
+      saveNotes();
+      ov.remove();
+      openNoteDayModal(dateStr);
+      showToast('삭제했습니다');
+    });
+  });
+  document.getElementById('addNoteBtn').addEventListener('click', ()=>{
+    const text = document.getElementById('note-text').value.trim();
+    if(!text){ showToast('내용을 입력해주세요'); return; }
+    state.notes.push({ id:uid(), date:dateStr, text });
+    saveNotes();
+    ov.remove();
+    openNoteDayModal(dateStr);
+    showToast('메모를 추가했습니다');
+  });
+}
+
 function renderCalendar(){
   const main = document.getElementById('main');
   const y = state.calYear, m = state.calMonth;
@@ -1174,6 +1340,7 @@ function renderCalendar(){
   main.querySelectorAll('td[data-date]').forEach(td=>{
     td.addEventListener('click', ()=>openDayModal(td.dataset.date));
   });
+  requestAnimationFrame(fitCalendarRows);
 }
 
 function openDayModal(dateStr){
@@ -1726,6 +1893,9 @@ function checkPin(){
     const el = document.getElementById('liveClock');
     if(el) el.textContent = nowHHMM();
   }, 15000);
+  window.addEventListener('resize', ()=>{
+    if(state.tab==='calendar' || state.tab==='notes') fitCalendarRows();
+  });
 })();
 </script>
 </body>
