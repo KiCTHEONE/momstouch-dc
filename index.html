@@ -722,7 +722,7 @@ function render(){
   app.innerHTML = `
     <div class="content-col">
       <header class="topbar">
-        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v22</span></h1>
+        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v24</span></h1>
         <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
         <div class="today-widget">
           <div class="tw-date">${dateLabel()}</div>
@@ -1385,7 +1385,41 @@ function renderPayroll(){
         <div style="font-size:11px;color:var(--sub);margin:8px 0;">총 근무시간 ${fmtHours(totalHours)} · 근무일수 ${entries.length}일</div>
         ${lines || '<div class="empty" style="padding:16px 0;">해당 기간 근무 기록이 없습니다.</div>'}
       </div>
+      <button class="btn outline block" id="csvBtn" style="margin-top:14px;">CSV 다운로드</button>
     `;
+    document.getElementById('csvBtn').addEventListener('click', ()=>{
+      const rows = [['날짜','요일','출근','퇴근','근무시간(시간)','시급','금액','비고']];
+      entries.forEach(l=>{
+        const wd = WD[new Date(l.date+'T00:00:00').getDay()];
+        if(!l.endTime){
+          rows.push([l.date, wd, l.startTime, '', '', l.wage, '', '진행중'+(l.isSub?' · 대타':'')]);
+        } else {
+          const h = calcHours(l.startTime,l.endTime);
+          rows.push([l.date, wd, l.startTime, l.endTime, h.toFixed(2), l.wage, Math.round(h*l.wage), l.isSub? '대타':'']);
+        }
+      });
+      rows.push([]);
+      rows.push(['총 근무시간(시간)', totalHours.toFixed(2)]);
+      rows.push(['세전 합계', totalPay]);
+      if(taxOn){
+        rows.push(['3.3% 원천징수', -taxAmount]);
+        rows.push(['실지급액', netPay]);
+      }
+      const csv = rows.map(r=>r.map(v=>{
+        const s = String(v===undefined? '' : v);
+        return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+      }).join(',')).join('\n');
+      const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const empName = emp? emp.name : 'employee';
+      a.href = url;
+      a.download = `${empName}_${start}_${end}_급여.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    });
   });
 }
 
@@ -1420,16 +1454,35 @@ function openPinModal(targetTab){
     </div>
   </div>`;
   const ov = document.getElementById('ovPin');
-  document.getElementById('closePin').addEventListener('click', ()=>ov.remove());
-  ov.addEventListener('click', ev=>{ if(ev.target===ov) ov.remove(); });
+
+  function pressDigit(d){
+    if(pinBuffer.length>=4) return;
+    pinBuffer += d;
+    updateDots();
+    if(pinBuffer.length===4) setTimeout(checkPin, 120);
+  }
+  function pressBack(){
+    pinBuffer = pinBuffer.slice(0,-1);
+    updateDots();
+  }
+  function keyHandler(ev){
+    if(ev.key>='0' && ev.key<='9'){ pressDigit(ev.key); ev.preventDefault(); }
+    else if(ev.key==='Backspace'){ pressBack(); ev.preventDefault(); }
+  }
+  function closeModal(){
+    document.removeEventListener('keydown', keyHandler);
+    ov.remove();
+  }
+  window._closePinModal = closeModal;
+  document.addEventListener('keydown', keyHandler);
+
+  document.getElementById('closePin').addEventListener('click', closeModal);
+  ov.addEventListener('click', ev=>{ if(ev.target===ov) closeModal(); });
   document.getElementById('keypad').addEventListener('click', ev=>{
     const b = ev.target.closest('button[data-n]');
     if(!b) return;
-    if(b.dataset.n==='back'){ pinBuffer = pinBuffer.slice(0,-1); updateDots(); return; }
-    if(pinBuffer.length>=4) return;
-    pinBuffer += b.dataset.n;
-    updateDots();
-    if(pinBuffer.length===4) setTimeout(checkPin, 120);
+    if(b.dataset.n==='back'){ pressBack(); return; }
+    pressDigit(b.dataset.n);
   });
 }
 function updateDots(){
@@ -1444,8 +1497,7 @@ function checkPin(){
   if(pinBuffer === PIN_CODE){
     state.unlocked = true;
     state.tab = pinTargetTab;
-    const ov = document.getElementById('ovPin');
-    if(ov) ov.remove();
+    if(window._closePinModal) window._closePinModal();
     render();
   } else {
     document.querySelectorAll('#pinDots .pin-dot').forEach(d=>d.classList.add('error'));
