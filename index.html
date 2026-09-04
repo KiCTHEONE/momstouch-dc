@@ -736,7 +736,7 @@ function render(){
   app.innerHTML = `
     <div class="content-col">
       <header class="topbar">
-        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v27</span></h1>
+        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v28</span></h1>
         <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
         <div class="today-widget">
           <div class="tw-date">${dateLabel()}</div>
@@ -930,6 +930,22 @@ function deleteEmployee(id){
   showToast('삭제했습니다');
 }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function downloadCSV(rows, filename){
+  const csv = rows.map(r=>r.map(v=>{
+    const s = String(v===undefined||v===null? '' : v);
+    return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
 
 const BANKS = ['국민','신한','우리','하나','농협','기업','카카오뱅크','토스뱅크','새마을금고','우체국','부산','대구','경남','광주','전북','SC제일','씨티','수협','산업'];
 
@@ -1387,7 +1403,7 @@ function renderPayroll(){
     ${state.employees.length===0? '<div class="empty">먼저 알바를 등록해주세요.</div>' : `
     <div class="field" style="margin-top:12px;">
       <label>알바 선택</label>
-      <select id="p-emp"><option value="">선택하세요</option>${opts}</select>
+      <select id="p-emp"><option value="">선택하세요</option><option value="all">전체보기</option>${opts}</select>
     </div>
     <div class="row2">
       <div class="field"><label>시작일</label><input type="date" id="p-start" value="${firstOfMonth}"></div>
@@ -1416,15 +1432,82 @@ function renderPayroll(){
     document.getElementById('p-start').value = fmtDate(ls);
     document.getElementById('p-end').value = fmtDate(le);
   });
+  function bankLine(emp){
+    return emp.bank && emp.account ? `${emp.bank} ${emp.account}` : '계좌 미등록';
+  }
+  function calcOne(empId, start, end){
+    const emp = state.employees.find(e=>e.id===empId);
+    const entries = state.worklogs.filter(w=>w.employeeId===empId && w.date>=start && w.date<=end)
+      .sort((a,b)=> a.date<b.date? -1:1);
+    let totalHours = 0, totalPay = 0;
+    entries.forEach(l=>{
+      if(!l.endTime) return;
+      totalHours += calcHours(l.startTime,l.endTime);
+      totalPay += calcHours(l.startTime,l.endTime)*l.wage;
+    });
+    return { emp, entries, totalHours, totalPay };
+  }
+
   document.getElementById('calcBtn').addEventListener('click', ()=>{
     const empId = document.getElementById('p-emp').value;
     if(!empId){ showToast('알바를 선택해주세요'); return; }
     const start = document.getElementById('p-start').value;
     const end = document.getElementById('p-end').value;
     if(!start || !end){ showToast('기간을 선택해주세요'); return; }
-    const entries = state.worklogs.filter(w=>w.employeeId===empId && w.date>=start && w.date<=end)
-      .sort((a,b)=> a.date<b.date? -1:1);
-    let totalHours = 0, totalPay = 0;
+    const taxOn = document.getElementById('p-tax').checked;
+
+    if(empId==='all'){
+      const results = state.employees.map(e=>calcOne(e.id, start, end));
+      let grandNet = 0;
+      const cards = results.map(r=>{
+        const taxAmount = taxOn? Math.round(r.totalPay*0.033) : 0;
+        const netPay = r.totalPay - taxAmount;
+        grandNet += netPay;
+        return `<div class="result-box" style="margin-top:14px;">
+          <div class="result-total">
+            <div><div class="lbl">${escapeHtml(r.emp.name)}${r.emp.active?'':' · 퇴사'}<br><span style="font-weight:400;font-size:11px;">${bankLine(r.emp)}</span></div></div>
+            <div class="val" style="font-size:18px;">${won(netPay)}</div>
+          </div>
+          ${taxOn? `<div class="payline"><span class="d1">세전 금액</span><span>${won(r.totalPay)}</span></div>
+          <div class="payline"><span class="d1">3.3% 원천징수</span><span>-${won(taxAmount)}</span></div>` : ''}
+          <div style="font-size:11px;color:var(--sub);margin-top:8px;">총 근무시간 ${fmtHours(r.totalHours)} · 근무일수 ${r.entries.filter(l=>l.endTime).length}일</div>
+        </div>`;
+      }).join('');
+      document.getElementById('payResult').innerHTML = `
+        <div class="result-box">
+          <div class="result-total">
+            <div><div class="lbl">전체 · ${start} ~ ${end}</div></div>
+            <div class="val">${won(grandNet)}</div>
+          </div>
+        </div>
+        ${cards}
+        <button class="btn outline block" id="csvBtn" style="margin-top:14px;">전체 CSV 다운로드</button>
+      `;
+      document.getElementById('csvBtn').addEventListener('click', ()=>{
+        const rows = [['이름','은행','계좌번호','날짜','요일','출근','퇴근','근무시간(시간)','시급','금액','비고']];
+        results.forEach(r=>{
+          r.entries.forEach(l=>{
+            const wd = WD[new Date(l.date+'T00:00:00').getDay()];
+            if(!l.endTime){
+              rows.push([r.emp.name, r.emp.bank||'', r.emp.account||'', l.date, wd, l.startTime, '', '', l.wage, '', '진행중'+(l.isSub?' · 대타':'')]);
+            } else {
+              const h = calcHours(l.startTime,l.endTime);
+              rows.push([r.emp.name, r.emp.bank||'', r.emp.account||'', l.date, wd, l.startTime, l.endTime, h.toFixed(2), l.wage, Math.round(h*l.wage), l.isSub? '대타':'']);
+            }
+          });
+        });
+        rows.push([]);
+        rows.push(['이름','은행','계좌번호','세전 합계','원천징수(3.3%)','실지급액']);
+        results.forEach(r=>{
+          const taxAmount = taxOn? Math.round(r.totalPay*0.033) : 0;
+          rows.push([r.emp.name, r.emp.bank||'', r.emp.account||'', Math.round(r.totalPay), taxOn? -taxAmount:0, Math.round(r.totalPay-taxAmount)]);
+        });
+        downloadCSV(rows, `전체_${start}_${end}_급여.csv`);
+      });
+      return;
+    }
+
+    const { emp, entries, totalHours, totalPay } = calcOne(empId, start, end);
     const lines = entries.map(l=>{
       if(!l.endTime){
         return `<div class="payline">
@@ -1434,27 +1517,24 @@ function renderPayroll(){
       }
       const h = calcHours(l.startTime,l.endTime);
       const pay = h*l.wage;
-      totalHours += h; totalPay += pay;
       return `<div class="payline">
         <span class="d1">${l.date} ${l.startTime}~${l.endTime}${l.isSub?' · 대타':''}</span>
         <span>${fmtHours(h)} · ${won(pay)}</span>
       </div>`;
     }).join('');
-    const emp = state.employees.find(e=>e.id===empId);
-    const taxOn = document.getElementById('p-tax').checked;
     const taxAmount = taxOn ? Math.round(totalPay*0.033) : 0;
     const netPay = totalPay - taxAmount;
     document.getElementById('payResult').innerHTML = `
       <div class="result-box">
         <div class="result-total">
-          <div><div class="lbl">${escapeHtml(emp? emp.name : '')} · ${start} ~ ${end}</div></div>
+          <div><div class="lbl">${escapeHtml(emp? emp.name : '')} · ${start} ~ ${end}<br><span style="font-weight:400;font-size:11px;">${bankLine(emp)}</span></div></div>
           <div class="val">${won(netPay)}</div>
         </div>
         ${taxOn? `
         <div class="payline"><span class="d1">세전 금액</span><span>${won(totalPay)}</span></div>
         <div class="payline"><span class="d1">3.3% 원천징수</span><span>-${won(taxAmount)}</span></div>
         ` : ''}
-        <div style="font-size:11px;color:var(--sub);margin:8px 0;">총 근무시간 ${fmtHours(totalHours)} · 근무일수 ${entries.length}일</div>
+        <div style="font-size:11px;color:var(--sub);margin:8px 0;">총 근무시간 ${fmtHours(totalHours)} · 근무일수 ${entries.filter(l=>l.endTime).length}일</div>
         ${lines || '<div class="empty" style="padding:16px 0;">해당 기간 근무 기록이 없습니다.</div>'}
       </div>
       <button class="btn outline block" id="csvBtn" style="margin-top:14px;">CSV 다운로드</button>
@@ -1471,26 +1551,16 @@ function renderPayroll(){
         }
       });
       rows.push([]);
+      rows.push(['은행', emp.bank||'']);
+      rows.push(['계좌번호', emp.account||'']);
       rows.push(['총 근무시간(시간)', totalHours.toFixed(2)]);
       rows.push(['세전 합계', totalPay]);
       if(taxOn){
         rows.push(['3.3% 원천징수', -taxAmount]);
         rows.push(['실지급액', netPay]);
       }
-      const csv = rows.map(r=>r.map(v=>{
-        const s = String(v===undefined? '' : v);
-        return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
-      }).join(',')).join('\n');
-      const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
       const empName = emp? emp.name : 'employee';
-      a.href = url;
-      a.download = `${empName}_${start}_${end}_급여.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(()=>URL.revokeObjectURL(url), 1000);
+      downloadCSV(rows, `${empName}_${start}_${end}_급여.csv`);
     });
   });
 }
