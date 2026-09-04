@@ -637,6 +637,20 @@ function calcHours(start,end){
   if(e<=s) e+=24*60;
   return (e-s)/60;
 }
+function floorTime(t, unit){
+  if(!t) return t;
+  const [h,m] = t.split(':').map(Number);
+  const total = h*60+m;
+  const rounded = Math.floor(total/unit)*unit;
+  const rh = Math.floor(rounded/60)%24;
+  const rm = rounded%60;
+  return String(rh).padStart(2,'0')+':'+String(rm).padStart(2,'0');
+}
+const SLOT_TIMES = {
+  '오전': { start:'10:30', end:'17:00' },
+  '오후': { start:'17:00', end:'22:00' },
+  '풀': { start:'10:30', end:'22:00' }
+};
 function fmtHours(h){
   const hh=Math.floor(h), mm=Math.round((h-hh)*60);
   return mm? `${hh}시간 ${mm}분` : `${hh}시간`;
@@ -722,7 +736,7 @@ function render(){
   app.innerHTML = `
     <div class="content-col">
       <header class="topbar">
-        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v24</span></h1>
+        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v26</span></h1>
         <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
         <div class="today-widget">
           <div class="tw-date">${dateLabel()}</div>
@@ -1125,7 +1139,14 @@ function openDayModal(dateStr){
             <button class="btn strong" data-confirm-emp="${e.id}">근무등록</button>
           </div>`).join('')}` : ''}
 
-      <div class="section-title">등록된 근무</div>
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>등록된 근무</span>
+        ${logs.length? `<span style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn strong" data-act="bulk-round" data-unit="60">1시간 단위 정리</button>
+          <button class="btn strong" data-act="bulk-round" data-unit="10">10분 단위 정리</button>
+          <button class="btn strong" data-act="bulk-slot">기준시간 정리</button>
+        </span>` : ''}
+      </div>
       <div id="logList">
         ${logs.length? logs.map(l=>`
           <div class="wl-item">
@@ -1146,6 +1167,38 @@ function openDayModal(dateStr){
   const ov = document.getElementById('ovDay');
   document.getElementById('closeDay').addEventListener('click', ()=>ov.remove());
   ov.addEventListener('click', ev=>{ if(ev.target===ov) ov.remove(); });
+
+  ov.querySelectorAll('[data-act=bulk-round]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const unit = Number(b.dataset.unit);
+      logs.forEach(l=>{
+        l.startTime = floorTime(l.startTime, unit);
+        if(l.endTime) l.endTime = floorTime(l.endTime, unit);
+      });
+      saveWorklogs();
+      ov.remove();
+      openDayModal(dateStr);
+      showToast(unit===60? '1시간 단위로 정리했습니다' : '10분 단위로 정리했습니다');
+    });
+  });
+  const bulkSlotBtn = ov.querySelector('[data-act=bulk-slot]');
+  if(bulkSlotBtn){
+    bulkSlotBtn.addEventListener('click', ()=>{
+      let changed = 0;
+      logs.forEach(l=>{
+        const emp = state.employees.find(e=>e.id===l.employeeId);
+        const st = emp ? SLOT_TIMES[emp.slot] : null;
+        if(!st) return;
+        l.startTime = st.start;
+        if(l.endTime) l.endTime = st.end;
+        changed++;
+      });
+      saveWorklogs();
+      ov.remove();
+      openDayModal(dateStr);
+      showToast(changed>0? `기준시간으로 정리했습니다 (${changed}건)` : '기준시간을 적용할 근무가 없습니다');
+    });
+  }
 
   ov.querySelectorAll('[data-confirm-emp]').forEach(b=>{
     b.addEventListener('click', ()=>{
