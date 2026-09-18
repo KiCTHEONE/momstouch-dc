@@ -36,8 +36,27 @@
     --r:14px;
     --r-sm:10px;
   }
+  html[data-theme="dark"]{
+    --bg:#15171C;
+    --bg-alt:#0E1014;
+    --panel:#1D2026;
+    --ink:#EEF0F4;
+    --sub:#878C97;
+    --sub2:#B4B9C4;
+    --line:#292D35;
+    --line-mid:#3A3F49;
+    --navy:#8B85FF;
+    --hall:#8B85FF;
+    --kitchen:#F59355;
+    --danger:#FF6B70;
+    --brand:#6E66F5;
+    --work-green:#3DD68C;
+    --work-green-bg:#16271F;
+    --navy-bg:#221F3D;
+  }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;color-scheme:light;}
+  html[data-theme="dark"]{color-scheme:dark;}
   body{
     background:var(--bg-alt);
     color:var(--ink);
@@ -561,6 +580,19 @@
     line-height:1.4;
   }
   .toast.show{opacity:1;}
+  html[data-theme="dark"] nav.tabbar{ background:rgba(21,23,28,.9); }
+  html[data-theme="dark"] table.cal td.otherm,
+  html[data-theme="dark"] table.cal td.otherm .dnum{ color:#3A3F49; }
+  html[data-theme="dark"] .emp-row,
+  html[data-theme="dark"] .clock-card{ box-shadow:none; }
+  html[data-theme="dark"] .overlay{ background:rgba(0,0,0,.6); }
+  html[data-theme="dark"] .toast{ background:var(--panel); color:var(--ink); border:1px solid var(--line-mid); box-shadow:0 6px 20px rgba(0,0,0,.5); }
+  html[data-theme="dark"] .fab-btn{ box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  html[data-theme="dark"] .btn.primary,
+  html[data-theme="dark"] .btn.brand{ color:#fff; }
+  html[data-theme="dark"] .days-picker label.checked,
+  html[data-theme="dark"] table.cal td.today .dnum{ color:#fff; }
+  html[data-theme="dark"] .field select{ color-scheme:dark; }
   .confirm-inline{display:flex;gap:12px;}
   .loading{padding:70px 16px;text-align:center;color:var(--sub);font-size:12.5px;}
   .hint{font-size:10.5px;color:var(--sub);margin-top:4px;}
@@ -605,6 +637,15 @@
   .keypad button.back{font-size:15px;color:var(--sub2);}
   .lock-error{font-size:11.5px;color:var(--danger);font-weight:600;height:16px;margin-top:14px;}
 </style>
+<script>
+(function(){
+  var h = new Date().getHours();
+  var dark = (h >= 18 || h < 6);
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', dark ? '#15171C' : '#FFFFFF');
+})();
+</script>
 </head>
 <body>
 <div id="app">
@@ -635,6 +676,13 @@ let state = {
 };
 
 function nowHHMM(){ const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function applyAutoTheme(){
+  const h = new Date().getHours();
+  const dark = (h >= 18 || h < 6);
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', dark ? '#15171C' : '#FFFFFF');
+}
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function dateLabel(){ const n=new Date(); return `${n.getMonth()+1}월 ${n.getDate()}일 (${WD[n.getDay()]})`; }
@@ -813,7 +861,7 @@ function render(){
   app.innerHTML = `
     <div class="content-col">
       <header class="topbar">
-        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v33</span></h1>
+        <h1>알바관리 <span style="font-size:10px;font-weight:400;color:var(--sub);">v34</span></h1>
         <div style="font-size:10.5px;color:var(--sub);margin-top:2px;font-weight:600;letter-spacing:.02em;">맘스터치 등촌점</div>
         <div class="today-widget">
           <div class="tw-date">${dateLabel()}</div>
@@ -1920,11 +1968,13 @@ function checkPin(){
 
 /* ============ INIT ============ */
 (async function initApp(){
+  applyAutoTheme();
   await Promise.all([loadAll(), fetchWeather()]);
   render();
   setInterval(()=>{
     const el = document.getElementById('liveClock');
     if(el) el.textContent = nowHHMM();
+    applyAutoTheme();
   }, 15000);
   window.addEventListener('resize', ()=>{
     if(state.tab==='calendar' || state.tab==='notes') fitCalendarRows();
